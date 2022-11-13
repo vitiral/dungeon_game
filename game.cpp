@@ -37,6 +37,9 @@
 #include <set>
 #include <vector>
 #include <array>
+#include <unordered_map>
+// using uomap = unordered_map;
+
 
 // There is no good debugging of events in SDL2, so we import this library.
 #include "libs/evt2str/sdl_event_to_string.h"
@@ -101,9 +104,9 @@ public:
   // RSurface    screen{};
   RRenderer   rend{};
 
-  RTexture    i_hello{};
-  RTexture    i_xOut{};
-  RTexture    i_png{};
+  // RTexture    i_hello{};
+  // RTexture    i_xOut{};
+  // RTexture    i_png{};
 
   TimeMs frame{0};  // timeMs at start of frame
 
@@ -212,19 +215,20 @@ class Game;
 
 class Entity {
 public:
+  Uint64    id;
   Color     color{0xFF};
   Size      sz{50, 100};
   Loc       loc{0, 0};
   Movement  mv{};
 
   void render(Display& d, Game& g) {
-    // color.render(d.rend);
-    // SDL_Rect r = sdlRect(d, g);
-    // SDL_RenderFillRect(&*d.rend, &r);
-    auto v = sdlTriangle(d, g);
-    SDL_RenderGeometry(
-      &*d.rend, /*texture=*/nullptr,
-      v.data(), 3, nullptr, 0);
+    color.render(d.rend);
+    SDL_Rect r = sdlRect(d, g);
+    SDL_RenderFillRect(&*d.rend, &r);
+    // auto v = sdlTriangle(d, g);
+    // SDL_RenderGeometry(
+    //   &*d.rend, /*texture=*/nullptr,
+    //   v.data(), 3, nullptr, 0);
   }
 
   Loc move() {
@@ -247,13 +251,28 @@ const int MAX_EVENTS = 256;
 
 // Game State
 class Game {
+  Uint64 m_nextId{};
+  Uint64 nextId() { return m_nextId++; }
+  unordered_map<Uint64, Entity> entities;
 public:
   Controller controller{};
   TimeMs loop {0};  // game loop number (incrementing)
 
   Loc    center{0, 0};
   Entity e1{};
-  Entity e2{.loc{-100, -100}};
+  Entity e2{.color{0, 0xFF}, .loc{-100, -100}};
+  Entity eBack{};
+
+  Entity& player() { return entities[0u]; }
+
+  Entity& newEntity() {
+    auto id = nextId();
+    entities[id] = {.id = id};
+    return entities[id];
+  }
+
+  Entity& entity(Uint64 id) { return entities[id]; }
+  void erase(Uint64 id) { entities.erase(id); }
 
   bool quit{};
   bool ctrl{};
@@ -365,11 +384,12 @@ RTexture Display::loadTexture(const std::string& path) {
 }
 
 bool Display::loadMedia() {
-  return not (
-    (i_hello = loadTexture("data/02_img.bmp")).isNull()
-    or (i_xOut  = loadTexture("data/x.bmp")).isNull()
-    or (i_png   = loadTexture("data/png_loaded.png")).isNull()
-  );
+  return true;
+  // return not (
+  //   (i_hello = loadTexture("data/02_img.bmp")).isNull()
+  //   or (i_xOut  = loadTexture("data/x.bmp")).isNull()
+  //   or (i_png   = loadTexture("data/png_loaded.png")).isNull()
+  // );
 }
 
 // *****************
@@ -399,7 +419,12 @@ void update(Game& g) {
 
 void paintScreen(Display& d, Game& g) {
   SDL_RenderClear(&*d.rend);
-  SDL_RenderCopy(&*d.rend, &*d.i_png, NULL, NULL);
+  // SDL_RenderCopy(&*d.rend, &*d.i_png, NULL, NULL);
+
+  g.eBack.loc = g.center;
+  g.eBack.color = {0x99, 0x99, 0x99};
+  g.eBack.sz = d.sz;
+  g.eBack.render(d, g);
   g.e1.render(d, g);
   g.e2.render(d, g);
   SDL_RenderPresent(&*d.rend);
