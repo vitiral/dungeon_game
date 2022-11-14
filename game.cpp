@@ -46,6 +46,7 @@
 #include "resource.h" // Resource and DEFER for wrapping C resources.
 #include "test.h"
 
+
 using namespace std;
 using TimeMs = Uint32;
 
@@ -72,6 +73,19 @@ struct Size {
   Size operator/ (const int r) const { return Size { w / r, h / r }; }
   bool operator==(Size r)  const { return w == r.w and w == r.w; }
 };
+
+// How does C++ work?
+TEST(cpp)
+  unordered_map<Uint64, Size> um;
+  um[0] = (Size){10, 20};
+  um[1] = (Size){20, 30};
+
+  assert(um[0] == ((Size){10, 20}));
+  assert(um[1] == ((Size){20, 30}));
+
+  Size& sz = um[0];
+  assert(sz == ((Size){10, 20}));
+END_TEST
 
 TEST(size)
   Size sz = Size{10, 5};
@@ -131,7 +145,7 @@ struct Color {
     : r{r}, g{g}, b{b}, a{a}
   {}
 
-  void render(const RRenderer& rend) {
+  void render(RRenderer& rend) {
     cout << "Rendering " << *this << '\n';
     SDL_SetRenderDrawColor(&*rend, r, g, b, a);
   }
@@ -153,7 +167,7 @@ ostream& operator<<(ostream& out, const Color& c) {
 }
 
 // Bound val by [-abs:abs]
-int bound(int abs, int val) {
+int bound(const int abs, const int val) {
   assert(abs >= 0);
   if(val > 0) return min(abs, val);
   return max(-abs, val);
@@ -265,7 +279,7 @@ class Game {
   Uint64 m_nextId{};
   Uint64 nextId() { return m_nextId++; }
 public:
-  unordered_map<Uint64, Entity> entities;
+  unordered_map<Uint64, Entity> entities{};
   Controller controller{};
   TimeMs loop {0};  // game loop number (incrementing)
 
@@ -276,13 +290,16 @@ public:
 
   Entity& player() { return entities[0u]; }
 
+  Entity& entity(Uint64 id) { return entities.find(id)->second; }
+
   Entity& newEntity() {
     auto id = nextId();
-    entities[id] = {.id = id};
-    return entities[id];
+    // entities[id] = {.id = id};
+    // return entities[id];
+    entities.insert(pair(id, (Entity) {.id = id}));
+    return entity(id);
   }
 
-  Entity& entity(Uint64 id) { return entities[id]; }
   void erase(Uint64 id) { entities.erase(id); }
 
   bool quit{};
@@ -424,11 +441,14 @@ void consumeEvents(Game& g) {
 }
 
 void update(Game& g) {
+  cout << "Update1: " << g.entity(0).color << " : " << g.entity(1).color << '\n';
   Controller& c = g.controller;
   // TODO: loop instead
   Entity& e = g.player();
   e.mv.update(Loc{c.d - c.a, c.w - c.s});
   e.loc = e.move();
+
+  cout << "UpdateE: " << g.entity(0).color << " : " << g.entity(1).color << '\n';
 
   // Controller& c = g.controller;
   // g.e1.mv.update(Loc{c.d - c.a, c.w - c.s});
@@ -451,13 +471,6 @@ void paintScreen(Display& d, Game& g) {
 void eventLoop(Display& d, Game& g) {
   d.frame = SDL_GetTicks();
 
-  // Demonstrate stretching/shrinking an image
-  SDL_Rect stretchRect {
-    .x = 0, .y = 0,
-    .w = SCREEN_WIDTH / 2, .h = SCREEN_HEIGHT / 2
-  };
-
-  SDL_Event e;
   while(not g.quit){
     consumeEvents(g);
     update(g);
@@ -492,19 +505,21 @@ int game() {
 
   Game g{};
   g.eBack.color = {0x99, 0x99, 0x99};
-  auto p = g.newEntity(); // player
+  auto& p = g.newEntity(); // player
   ASSERT_EQ(p.id, 0);
   p.sz = {50, 100};
   p.color = {0xFF, 0x00, 0x00};
 
-  auto e = g.newEntity(); // reference
+  auto& e = g.newEntity(); // reference
   ASSERT_EQ(e.id, 1);
   e.sz = {100, 200};
   e.loc = {100, 100};
   Loc exp = {100, 100};
   assert(e.loc == exp);
-  assert(not (p.loc == exp));
   e.color = {0x00, 0x00, 0xFF};
+
+  cout << "Starting: " << p.color << " : " << e.color << '\n';
+  cout << "Starting2: " << g.entity(0).color << " : " << g.entity(1).color << '\n';
 
   eventLoop(d, g);
   return 0;
@@ -512,6 +527,7 @@ int game() {
 
 int tests() {
   cout << "Running tests\n";
+  CALL_TEST(cpp);
   CALL_TEST(size);
   CALL_TEST(bound);
   CALL_TEST(updateVel);
