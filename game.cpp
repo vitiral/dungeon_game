@@ -146,7 +146,6 @@ struct Color {
   {}
 
   void render(RRenderer& rend) {
-    cout << "Rendering " << *this << '\n';
     SDL_SetRenderDrawColor(&*rend, r, g, b, a);
   }
 
@@ -517,9 +516,6 @@ int game() {
   Loc exp = {100, 100};
   assert(e.loc == exp);
   e.color = {0x00, 0x00, 0xFF};
-
-  cout << "Starting: " << p.color << " : " << e.color << '\n';
-  cout << "Starting2: " << g.entity(0).color << " : " << g.entity(1).color << '\n';
 
   eventLoop(d, g);
   return 0;
