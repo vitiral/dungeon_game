@@ -132,6 +132,7 @@ struct Color {
   {}
 
   void render(RRenderer& rend) {
+    cout << "Rendering " << *this << '\n';
     SDL_SetRenderDrawColor(&*rend, r, g, b, a);
   }
 
@@ -139,7 +140,17 @@ struct Color {
     c.r = r;  c.g = g;  c.b = b;  c.a = a;
     return c;
   }
+
+  friend ostream& operator<<(ostream& out, const Color& c);
 };
+
+ostream& operator<<(ostream& out, const Color& c) {
+  return out << "Color("
+             << static_cast<int>(c.r) << ", "
+             << static_cast<int>(c.g) << ", "
+             << static_cast<int>(c.b) << ", "
+             << static_cast<int>(c.a) << ")";
+}
 
 // Bound val by [-abs:abs]
 int bound(int abs, int val) {
@@ -253,14 +264,14 @@ const int MAX_EVENTS = 256;
 class Game {
   Uint64 m_nextId{};
   Uint64 nextId() { return m_nextId++; }
-  unordered_map<Uint64, Entity> entities;
 public:
+  unordered_map<Uint64, Entity> entities;
   Controller controller{};
   TimeMs loop {0};  // game loop number (incrementing)
 
   Loc    center{0, 0};
-  Entity e1{};
-  Entity e2{.color{0, 0xFF}, .loc{-100, -100}};
+  // Entity e1{};
+  // Entity e2{.color{0, 0xFF}, .loc{-100, -100}};
   Entity eBack{};
 
   Entity& player() { return entities[0u]; }
@@ -293,11 +304,12 @@ void Game::keyEvent(SDL_KeyboardEvent& e, bool pressed) {
   if(e.repeat) return;
   cout << "Keydown: " << sdlEventToString(SDL_Event{.key = e}) << '\n';
   Controller& c = controller;
+  Entity& p = player();
   switch(e.keysym.sym) {
-    case SDLK_UP:    e1.loc.y += 5; return;
-    case SDLK_DOWN:  e1.loc.y -= 5; return;
-    case SDLK_LEFT:  e1.loc.x -= 5; return;
-    case SDLK_RIGHT: e1.loc.x += 5; return;
+    case SDLK_UP:    p.loc.y += 5; return;
+    case SDLK_DOWN:  p.loc.y -= 5; return;
+    case SDLK_LEFT:  p.loc.x -= 5; return;
+    case SDLK_RIGHT: p.loc.x += 5; return;
 
     case SDLK_a:     c.a = pressed; assert(c.a <= 1); break;
     case SDLK_s:     c.s = pressed; assert(c.s <= 1); break;
@@ -413,8 +425,14 @@ void consumeEvents(Game& g) {
 
 void update(Game& g) {
   Controller& c = g.controller;
-  g.e1.mv.update(Loc{c.d - c.a, c.w - c.s});
-  g.e1.loc = g.e1.move();
+  // TODO: loop instead
+  Entity& e = g.player();
+  e.mv.update(Loc{c.d - c.a, c.w - c.s});
+  e.loc = e.move();
+
+  // Controller& c = g.controller;
+  // g.e1.mv.update(Loc{c.d - c.a, c.w - c.s});
+  // g.e1.loc = g.e1.move();
 }
 
 void paintScreen(Display& d, Game& g) {
@@ -422,11 +440,11 @@ void paintScreen(Display& d, Game& g) {
   // SDL_RenderCopy(&*d.rend, &*d.i_png, NULL, NULL);
 
   g.eBack.loc = g.center;
-  g.eBack.color = {0x99, 0x99, 0x99};
-  g.eBack.sz = d.sz;
+  g.eBack.sz  = d.sz;
   g.eBack.render(d, g);
-  g.e1.render(d, g);
-  g.e2.render(d, g);
+  for(auto& it: g.entities) {
+    it.second.render(d, g);
+  }
   SDL_RenderPresent(&*d.rend);
 }
 
@@ -473,6 +491,20 @@ int game() {
   }
 
   Game g{};
+  g.eBack.color = {0x99, 0x99, 0x99};
+  auto p = g.newEntity(); // player
+  ASSERT_EQ(p.id, 0);
+  p.sz = {50, 100};
+  p.color = {0xFF, 0x00, 0x00};
+
+  auto e = g.newEntity(); // reference
+  ASSERT_EQ(e.id, 1);
+  e.sz = {100, 200};
+  e.loc = {100, 100};
+  Loc exp = {100, 100};
+  assert(e.loc == exp);
+  assert(not (p.loc == exp));
+  e.color = {0x00, 0x00, 0xFF};
 
   eventLoop(d, g);
   return 0;
