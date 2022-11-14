@@ -131,7 +131,7 @@ struct Color {
     : r{r}, g{g}, b{b}, a{a}
   {}
 
-  void render(RRenderer& rend) {
+  void render(const RRenderer& rend) {
     cout << "Rendering " << *this << '\n';
     SDL_SetRenderDrawColor(&*rend, r, g, b, a);
   }
