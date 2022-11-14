@@ -505,12 +505,12 @@ int game() {
 
   Game g{};
   g.eBack.color = {0x99, 0x99, 0x99};
-  auto& p = g.newEntity(); // player
+  Entity& p = g.newEntity(); // player
   ASSERT_EQ(p.id, 0);
   p.sz = {50, 100};
   p.color = {0xFF, 0x00, 0x00};
 
-  auto& e = g.newEntity(); // reference
+  Entity& e = g.newEntity(); // reference
   ASSERT_EQ(e.id, 1);
   e.sz = {100, 200};
   e.loc = {100, 100};
