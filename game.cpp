@@ -226,6 +226,7 @@ struct Movement {
   Loc v{};    // velocity vector
   int a {3};  // acceleration per tick
   int maxV{15};
+  int weight{5};
 
   void update(Loc dir) {
     assert(abs(dir.x) <= 1);
@@ -234,6 +235,7 @@ struct Movement {
     v.y = updateVel(dir.y, v.y, a, maxV);
   }
 };
+
 
 class Game;
 
@@ -259,6 +261,19 @@ public:
     return loc + mv.v;
   }
 
+  int left()   const { return loc.x - sz.w; }
+  int right()  const { return loc.x + sz.w; }
+  int bottom() const { return loc.y - sz.w; }
+  int top()    const { return loc.y + sz.w; }
+
+  bool collides(const Entity& e) const {
+    if(left()   > e.right())  return false;
+    if(right()  < e.left())   return false;
+    if(bottom() > e.top())    return false;
+    if(top()    > e.bottom()) return false;
+    return true;
+  };
+
   // Get the SDL Rectangle for the entity
   Loc           displayLoc(Display& d, Game& g);
   SDL_Rect      sdlRect(Display& d, Game& g);
@@ -283,10 +298,7 @@ public:
   TimeMs loop {0};  // game loop number (incrementing)
 
   Loc    center{0, 0};
-  // Entity e1{};
-  // Entity e2{.color{0, 0xFF}, .loc{-100, -100}};
-  Entity eBack{};
-
+  Color background{0x99, 0x99, 0x99}; // background color
   Entity& player() { return entities[0u]; }
 
   Entity& entity(Uint64 id) { return entities.find(id)->second; }
@@ -440,14 +452,11 @@ void consumeEvents(Game& g) {
 }
 
 void update(Game& g) {
-  cout << "Update1: " << g.entity(0).color << " : " << g.entity(1).color << '\n';
   Controller& c = g.controller;
   // TODO: loop instead
   Entity& e = g.player();
   e.mv.update(Loc{c.d - c.a, c.w - c.s});
   e.loc = e.move();
-
-  cout << "UpdateE: " << g.entity(0).color << " : " << g.entity(1).color << '\n';
 
   // Controller& c = g.controller;
   // g.e1.mv.update(Loc{c.d - c.a, c.w - c.s});
@@ -458,9 +467,9 @@ void paintScreen(Display& d, Game& g) {
   SDL_RenderClear(&*d.rend);
   // SDL_RenderCopy(&*d.rend, &*d.i_png, NULL, NULL);
 
-  g.eBack.loc = g.center;
-  g.eBack.sz  = d.sz;
-  g.eBack.render(d, g);
+  // render background
+  g.background.render(d.rend);
+  SDL_RenderFillRect(&*d.rend, nullptr);
   for(auto& it: g.entities) {
     it.second.render(d, g);
   }
@@ -503,7 +512,6 @@ int game() {
   }
 
   Game g{};
-  g.eBack.color = {0x99, 0x99, 0x99};
   Entity& p = g.newEntity(); // player
   ASSERT_EQ(p.id, 0);
   p.sz = {50, 100};
